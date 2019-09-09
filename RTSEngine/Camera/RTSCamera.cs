@@ -1,6 +1,4 @@
 ﻿using System;
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
 public class RTSCamera : MonoBehaviour
@@ -45,6 +43,16 @@ public class RTSCamera : MonoBehaviour
 
     private float movingTimeSinceStart = 0;
 
+    [Header("Ground Distance")]
+    [SerializeField]
+    private bool enableGroundDistanceAdjuster = true;
+    [SerializeField]
+    private float groundDistancePreferred = 15f;
+    [SerializeField]
+    private float groundDistanceAdjustSpeed = 2f;
+    [SerializeField]
+    private LayerMask groundDistanceLayer = ~0;
+
     void Update()
     {
         if (rotationEnabled)
@@ -60,6 +68,11 @@ public class RTSCamera : MonoBehaviour
         if(movingEnabled)
         {
             HandleMoving();
+        }
+
+        if(enableGroundDistanceAdjuster)
+        {
+            HandleGroundDistanceAdjuster();
         }
     }
 
@@ -160,6 +173,16 @@ public class RTSCamera : MonoBehaviour
         else
         {
             movingTimeSinceStart = Math.Max(movingTimeSinceStart - Time.deltaTime, 0);
+        }
+    }
+
+    private void HandleGroundDistanceAdjuster()
+    {
+        var ray = new Ray(new Vector3(transform.position.x, 1000, transform.position.z), Vector3.down);
+        if(Physics.Raycast(ray, out RaycastHit hit, float.PositiveInfinity, groundDistanceLayer))
+        {
+            var targetHeight = hit.point.y + groundDistancePreferred;
+            transform.position = new Vector3(transform.position.x, Mathf.Lerp(transform.position.y, targetHeight, groundDistanceAdjustSpeed * Time.deltaTime), transform.position.z); 
         }
     }
 }
