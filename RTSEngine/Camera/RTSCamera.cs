@@ -45,17 +45,35 @@ public class RTSCamera : MonoBehaviour
 
     [Header("Ground Distance")]
     [SerializeField]
-    private bool enableGroundDistanceAdjuster = true;
+    private bool groundDistanceEnabled = true;
     [SerializeField]
-    private float groundDistancePreferred = 15f;
+    private float maxWorldHeight = 10000;
     [SerializeField]
-    private float groundDistanceMin = 0.75f;
+    private float groundDistanceMin = 10f;
     [SerializeField]
-    private float groundDistanceMax = 1.25f;
+    private float groundDistanceMinHard = 5f;
     [SerializeField]
     private float groundDistanceAdjustSpeed = 2f;
     [SerializeField]
     private LayerMask groundDistanceLayer = ~0;
+
+    [Header("Zooming")]
+    [SerializeField]
+    private bool zoomingEnabled = true;
+    [SerializeField]
+    private float zoomingBaseSpeed = 100f;
+    [SerializeField]
+    private AnimationCurve zoomingSpeedCurve = AnimationCurve.Constant(0, 1, 1);
+
+    private float currentPreferredHeight;
+
+    [SerializeField]
+    private float zoomingMax = 100f;
+
+    private void Start()
+    {
+        currentPreferredHeight = this.transform.position.y;
+    }
 
     void Update()
     {
@@ -74,9 +92,14 @@ public class RTSCamera : MonoBehaviour
             HandleMoving();
         }
 
-        if(enableGroundDistanceAdjuster)
+        if (zoomingEnabled)
         {
-            HandleGroundDistanceAdjuster();
+            HandleZooming();
+        }
+
+        if (groundDistanceEnabled)
+        {
+            HandleGroundDistance();
         }
     }
 
@@ -139,8 +162,8 @@ public class RTSCamera : MonoBehaviour
 
     private void HandleMoving()
     {
-        var deltaX = 0;
-        var deltaZ = 0;
+        float deltaX = 0;
+        float deltaZ = 0;
 
         // x
         if(movingLeft.Any())
@@ -180,22 +203,59 @@ public class RTSCamera : MonoBehaviour
         }
     }
 
-    private void HandleGroundDistanceAdjuster()
+    private void HandleGroundDistance()
     {
-        var ray = new Ray(new Vector3(transform.position.x, 1000, transform.position.z), Vector3.down);
-        if(Physics.Raycast(ray, out RaycastHit hit, float.PositiveInfinity, groundDistanceLayer))
+        float groundHeight = GetHeightAt(transform.position.x, transform.position.z);
+        float heightDelta = transform.position.y - groundHeight;
+        if (heightDelta < groundDistanceMin)
         {
-            var heightDelta = transform.position.y - hit.point.y;
-            if(heightDelta < groundDistanceMin * groundDistancePreferred)
+            if (heightDelta > groundDistanceMinHard)
             {
-                var newHeight = Mathf.Lerp(transform.position.y, hit.point.y + groundDistanceMin * groundDistancePreferred, groundDistanceAdjustSpeed * Time.deltaTime);
+                float newHeight = Mathf.Lerp(transform.position.y, groundHeight + groundDistanceMin, groundDistanceAdjustSpeed * Time.deltaTime);
                 transform.position = new Vector3(transform.position.x, newHeight, transform.position.z);
             }
-            else if(heightDelta > groundDistanceMax * groundDistancePreferred)
+            else
             {
-                var newHeight = Mathf.Lerp(transform.position.y, hit.point.y + groundDistanceMax * groundDistancePreferred, groundDistanceAdjustSpeed * Time.deltaTime);
-                transform.position = new Vector3(transform.position.x, newHeight, transform.position.z);
+                transform.position = new Vector3(transform.position.x, groundHeight + groundDistanceMinHard, transform.position.z);
             }
         }
+        else if(transform.position.y != currentPreferredHeight)
+        {
+            float newHeight = Mathf.Lerp(transform.position.y, currentPreferredHeight, groundDistanceAdjustSpeed * Time.deltaTime);
+            transform.position = new Vector3(transform.position.x, newHeight, transform.position.z);
+        }
+    }
+
+    private void HandleZooming()
+    {
+        float scrollDelta = Input.mouseScrollDelta.y;
+
+        // zooming out
+        if(scrollDelta < 0)
+        {
+            float groundHeight = GetHeightAt(transform.position.x, transform.position.z);
+            float newHeight = Math.Min(transform.position.y + Math.Abs(scrollDelta) * zoomingBaseSpeed * zoomingSpeedCurve.Evaluate(transform.position.y / (maxWorldHeight - groundHeight) ), zoomingMax);
+            currentPreferredHeight = newHeight;
+            transform.position = new Vector3(transform.position.x, newHeight, transform.position.z);
+        }
+        // zooming in
+        else if (scrollDelta > 0)
+        {
+            float groundHeight = GetHeightAt(transform.position.x, transform.position.z);
+            float newHeight = Math.Max(transform.position.y - Math.Abs(scrollDelta) * zoomingBaseSpeed * zoomingSpeedCurve.Evaluate(transform.position.y / (maxWorldHeight - groundHeight)), groundHeight + groundDistanceMin);
+            currentPreferredHeight = newHeight;
+            transform.position = new Vector3(transform.position.x, newHeight, transform.position.z);
+        }
+    }
+
+    private float GetHeightAt(float x, float z)
+    {
+        var ray = new Ray(new Vector3(x, maxWorldHeight, z), Vector3.down);
+        if (Physics.Raycast(ray, out RaycastHit hit, float.PositiveInfinity, groundDistanceLayer))
+        {
+            return hit.point.y;
+        }
+
+        return 0;
     }
 }
