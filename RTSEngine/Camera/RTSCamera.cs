@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -22,7 +23,27 @@ public class RTSCamera : MonoBehaviour
     [SerializeField]
     private float autoScrollBaseSpeed = 25;
     [SerializeField]
-    private AnimationCurve autoScrollSpeedCurve;
+    private AnimationCurve autoScrollSpeedCurve = AnimationCurve.Linear(0, 0, 1, 1);
+
+    [Header("Moving")]
+    [SerializeField]
+    private bool movingEnabled = true;
+    [SerializeField]
+    private KeyCodeGroup movingLeft = new KeyCodeGroup(KeyCode.A, KeyCode.LeftArrow);
+    [SerializeField]
+    private KeyCodeGroup movingForward = new KeyCodeGroup(KeyCode.W, KeyCode.UpArrow);
+    [SerializeField]
+    private KeyCodeGroup movingRight = new KeyCodeGroup(KeyCode.D, KeyCode.RightArrow);
+    [SerializeField]
+    private KeyCodeGroup movingBackward = new KeyCodeGroup(KeyCode.S, KeyCode.DownArrow);
+    [SerializeField]
+    private float movingBaseSpeed = 25;
+    [SerializeField]
+    private AnimationCurve movingSpeedCurve = AnimationCurve.Linear(0, 0, 1, 1);
+    [SerializeField]
+    private float movingTimeUntilMaxSpeed = 3; // in seconds
+
+    private float movingTimeSinceStart = 0;
 
     void Update()
     {
@@ -34,6 +55,11 @@ public class RTSCamera : MonoBehaviour
         if (autoScrollEnabled)
         {
             HandleAutoscroll();
+        }
+
+        if(movingEnabled)
+        {
+            HandleMoving();
         }
     }
 
@@ -63,10 +89,10 @@ public class RTSCamera : MonoBehaviour
     private void HandleAutoscroll()
     {
         float currentX = Input.mousePosition.x / Screen.width;
-        float currentY = Input.mousePosition.y / Screen.height;
+        float currentZ = Input.mousePosition.y / Screen.height;
 
         float deltaX = 0;
-        float deltaY = 0;
+        float deltaZ = 0;
 
         // x
         if(currentX <= autoScrollScreenBorderThreshold)
@@ -79,17 +105,61 @@ public class RTSCamera : MonoBehaviour
             deltaX += autoScrollSpeedCurve.Evaluate(1.0f - (1.0f - currentX) / autoScrollScreenBorderThreshold);
         }
 
-        // y
-        if (currentY <= autoScrollScreenBorderThreshold)
+        // z
+        if (currentZ <= autoScrollScreenBorderThreshold)
         {
-            deltaY -= autoScrollSpeedCurve.Evaluate(1.0f - currentY / autoScrollScreenBorderThreshold);
+            deltaZ -= autoScrollSpeedCurve.Evaluate(1.0f - currentZ / autoScrollScreenBorderThreshold);
         }
 
-        if (currentY >= 1.0f - autoScrollScreenBorderThreshold)
+        if (currentZ >= 1.0f - autoScrollScreenBorderThreshold)
         {
-            deltaY += autoScrollSpeedCurve.Evaluate(1.0f - (1.0f - currentY) / autoScrollScreenBorderThreshold);
+            deltaZ += autoScrollSpeedCurve.Evaluate(1.0f - (1.0f - currentZ) / autoScrollScreenBorderThreshold);
         }
 
-        transform.position += Quaternion.Euler(new Vector3(0, transform.rotation.eulerAngles.y, 0)) * new Vector3(deltaX, 0, deltaY) * autoScrollBaseSpeed * Time.deltaTime;
+        transform.position += Quaternion.Euler(new Vector3(0, transform.rotation.eulerAngles.y, 0)) * new Vector3(deltaX, 0, deltaZ) 
+            * autoScrollBaseSpeed * Time.deltaTime;
+    }
+
+    private void HandleMoving()
+    {
+        var deltaX = 0;
+        var deltaZ = 0;
+
+        // x
+        if(movingLeft.Any())
+        {
+            deltaX -= 1;
+        }
+
+        if(movingRight.Any())
+        {
+            deltaX += 1;
+        }
+
+        // z
+        if(movingForward.Any())
+        {
+            deltaZ += 1;
+        }
+
+        if(movingBackward.Any())
+        {
+            deltaZ -= 1;
+        }
+
+        if(deltaX != 0 || deltaZ != 0)
+        {
+            transform.position += Quaternion.Euler(new Vector3(0, transform.rotation.eulerAngles.y, 0)) * new Vector3(deltaX, 0, deltaZ) 
+                * movingBaseSpeed * movingSpeedCurve.Evaluate(movingTimeSinceStart / movingTimeUntilMaxSpeed) * Time.deltaTime;
+
+            if(movingTimeSinceStart < movingTimeUntilMaxSpeed)
+            {
+                movingTimeSinceStart = Math.Min(movingTimeSinceStart + Time.deltaTime, movingTimeUntilMaxSpeed);
+            }
+        }
+        else
+        {
+            movingTimeSinceStart = Math.Max(movingTimeSinceStart - Time.deltaTime, 0);
+        }
     }
 }
