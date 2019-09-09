@@ -20,7 +20,7 @@ public class RTSCamera : MonoBehaviour
     [SerializeField, Range(0f, 0.5f)]
     private float autoScrollScreenBorderThreshold = 0.1f; //autoscrolling will be on whenever the mouse is 0.x away from the screen border
     [SerializeField]
-    private float autoScrollBaseSpeed = 10000;
+    private float autoScrollBaseSpeed = 25;
     [SerializeField]
     private AnimationCurve autoScrollSpeedCurve;
 
@@ -46,7 +46,7 @@ public class RTSCamera : MonoBehaviour
 
             if (rotationKeyPressed)
             {
-                transform.Rotate(Vector3.up, rotationDelta * rotationSpeed * Time.deltaTime);
+                transform.Rotate(Vector3.up, rotationDelta * rotationSpeed * Time.deltaTime, Space.World);
             }
         }
 
@@ -90,6 +90,6 @@ public class RTSCamera : MonoBehaviour
             deltaY += autoScrollSpeedCurve.Evaluate(1.0f - (1.0f - currentY) / autoScrollScreenBorderThreshold);
         }
 
-        transform.position += transform.TransformVector(new Vector3(deltaX, 0, deltaY) * autoScrollBaseSpeed) * Time.deltaTime;
+        transform.position += Quaternion.Euler(new Vector3(0, transform.rotation.eulerAngles.y, 0)) * new Vector3(deltaX, 0, deltaY) * autoScrollBaseSpeed * Time.deltaTime;
     }
 }
