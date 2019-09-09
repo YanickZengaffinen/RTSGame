@@ -49,6 +49,10 @@ public class RTSCamera : MonoBehaviour
     [SerializeField]
     private float groundDistancePreferred = 15f;
     [SerializeField]
+    private float groundDistanceMin = 0.75f;
+    [SerializeField]
+    private float groundDistanceMax = 1.25f;
+    [SerializeField]
     private float groundDistanceAdjustSpeed = 2f;
     [SerializeField]
     private LayerMask groundDistanceLayer = ~0;
@@ -181,8 +185,17 @@ public class RTSCamera : MonoBehaviour
         var ray = new Ray(new Vector3(transform.position.x, 1000, transform.position.z), Vector3.down);
         if(Physics.Raycast(ray, out RaycastHit hit, float.PositiveInfinity, groundDistanceLayer))
         {
-            var targetHeight = hit.point.y + groundDistancePreferred;
-            transform.position = new Vector3(transform.position.x, Mathf.Lerp(transform.position.y, targetHeight, groundDistanceAdjustSpeed * Time.deltaTime), transform.position.z); 
+            var heightDelta = transform.position.y - hit.point.y;
+            if(heightDelta < groundDistanceMin * groundDistancePreferred)
+            {
+                var newHeight = Mathf.Lerp(transform.position.y, hit.point.y + groundDistanceMin * groundDistancePreferred, groundDistanceAdjustSpeed * Time.deltaTime);
+                transform.position = new Vector3(transform.position.x, newHeight, transform.position.z);
+            }
+            else if(heightDelta > groundDistanceMax * groundDistancePreferred)
+            {
+                var newHeight = Mathf.Lerp(transform.position.y, hit.point.y + groundDistanceMax * groundDistancePreferred, groundDistanceAdjustSpeed * Time.deltaTime);
+                transform.position = new Vector3(transform.position.x, newHeight, transform.position.z);
+            }
         }
     }
 }
